@@ -1,0 +1,588 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>I-80 Card Hunt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Overpass+Mono:wght@500;600&family=Overpass:wght@600;700;800;900&display=swap">
+<style>
+/* Layout: a one-column strip map in the spirit of a TripTik. A road runs down the left edge,
+   each stop hangs off it under a green exit tab, and the header is a guide sign. */
+:root{
+  --paper:#EDF1EE;
+  --card:#FFFFFF;
+  --ink:#16201A;
+  --muted:#55635B;
+  --line:#C8D2CC;
+  --road:#5A646B;
+  --sign:#0A6A3B;
+  --sign-ink:#FFFFFF;
+  --flag:#F5C400;
+  --flag-ink:#1D1A00;
+  --shield-white:#FFFFFF;
+  --shield-blue:#1D4F9F;
+  --shield-red:#C21B32;
+  --warn:#B42318;
+  --warn-bg:#FCE9E7;
+  --ok:#17663A;
+  --ok-bg:#E2F2E8;
+  --focus:#1D4F9F;
+  --f-sign:"Overpass","Arial Narrow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"Overpass Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#111518; --card:#1A2024; --ink:#E5EBE7; --muted:#9AA7A0; --line:#2C353B; --road:#48525B;
+    --sign:#0D7743; --sign-ink:#FFFFFF; --flag:#F2C200; --flag-ink:#1D1A00;
+    --shield-white:#FFFFFF; --shield-blue:#2A60B8; --shield-red:#D22C43;
+    --warn:#FF9083; --warn-bg:#3B1F1C; --ok:#80D6A3; --ok-bg:#17301F; --focus:#93B8FF;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111518; --card:#1A2024; --ink:#E5EBE7; --muted:#9AA7A0; --line:#2C353B; --road:#48525B;
+  --sign:#0D7743; --sign-ink:#FFFFFF; --flag:#F2C200; --flag-ink:#1D1A00;
+  --shield-white:#FFFFFF; --shield-blue:#2A60B8; --shield-red:#D22C43;
+  --warn:#FF9083; --warn-bg:#3B1F1C; --ok:#80D6A3; --ok-bg:#17301F; --focus:#93B8FF;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding-inline:16px;padding-block:20px 56px}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+/* Guide-sign header */
+.sign{background:var(--sign);color:var(--sign-ink);border-radius:14px;padding:6px}
+.sign-inner{border:3px solid var(--sign-ink);border-radius:10px;padding:16px 18px 18px;display:grid;gap:10px}
+.shields{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.shields svg{display:block;height:34px;width:auto}
+.shields .to{font:800 .9rem var(--f-sign);opacity:.85;padding-inline:2px}
+.shields .tolltag{font:800 .62rem/1 var(--f-sign);letter-spacing:.08em;background:var(--flag);color:var(--flag-ink);padding:3px 4px;border-radius:3px}
+h1{font-family:var(--f-sign);font-weight:900;font-size:clamp(2.1rem,8vw,3.2rem);line-height:.95;letter-spacing:.01em;text-transform:uppercase;margin:4px 0 0;text-wrap:balance}
+.sub{font:700 1.05rem/1.3 var(--f-sign);margin:0;letter-spacing:.01em}
+.facts{margin:0;font-size:.95rem}
+
+/* Controls */
+.controls{display:grid;gap:12px;margin-block:18px 6px}
+.ctl-label{font:800 .74rem var(--f-sign);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.plans{display:flex;flex-wrap:wrap;gap:6px}
+.plans button{font:800 .95rem var(--f-sign);padding:10px 14px;min-height:44px;border-radius:999px;border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.plans button span{font-weight:600;color:var(--muted);margin-left:4px}
+.plans button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.plans button[aria-pressed="true"] span{color:var(--paper);opacity:.8}
+.timerow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 22px}
+.timerow label{display:grid;gap:4px}
+input[type=time]{font:600 1.05rem var(--f-num);padding:8px 10px;min-height:44px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+.arrive{display:grid;gap:2px}
+.arrive b{font:600 1.35rem/1.1 var(--f-num)}
+.anchor-note{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.92rem;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.anchor-note[hidden]{display:none}
+.linkbtn{font:700 .9rem var(--f-sign);background:none;border:0;padding:4px 2px;color:var(--ink);text-decoration:underline;cursor:pointer}
+.caveat{margin:4px 0 0;font-size:.9rem;color:var(--muted)}
+
+/* Strip map */
+.segment{margin-top:30px}
+.seg-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 8px}
+.seg-head .shields svg{height:30px}
+.seg-head h2{font:800 1.02rem/1.2 var(--f-sign);text-transform:uppercase;letter-spacing:.05em;margin:0}
+.seg-head .more{font-size:.85rem;color:var(--muted)}
+.stops{list-style:none;margin:0;padding:0;position:relative}
+.stops::before{content:"";position:absolute;left:12px;top:0;bottom:0;width:8px;background:var(--road);border-radius:4px}
+.stops::after{content:"";position:absolute;left:15.5px;top:6px;bottom:6px;width:1px;background:repeating-linear-gradient(to bottom,var(--flag) 0 9px,transparent 9px 18px)}
+.stop{position:relative;padding:10px 0 10px 46px}
+.node{position:absolute;left:6px;top:38px;width:20px;height:20px;border-radius:50%;background:var(--card);border:3px solid var(--ink);z-index:1}
+.stop.star .node{border-radius:3px;transform:rotate(45deg);background:var(--flag);border:2px solid var(--flag-ink);width:18px;height:18px;left:7px}
+.stop.extra .node{border-style:dashed;background:var(--paper)}
+.stop.passed{opacity:.5}
+.exit{display:inline-block;background:var(--sign);color:var(--sign-ink);font:800 .78rem/1 var(--f-sign);letter-spacing:.09em;text-transform:uppercase;padding:7px 10px 6px;border-radius:7px 7px 0 0;box-shadow:inset 0 0 0 2px var(--sign),inset 0 0 0 4px var(--sign-ink)}
+.exit.plain{background:var(--road);box-shadow:none}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:0 12px 12px 12px;padding:12px 14px 14px;display:grid;gap:10px;min-width:0}
+.stop.star .panel{border:2px solid var(--flag)}
+.stop-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:2px 12px}
+.stop-head h3{margin:0;font:800 1.18rem/1.2 var(--f-sign);text-wrap:balance}
+.eta{font:600 1rem var(--f-num);white-space:nowrap;font-variant-numeric:tabular-nums}
+.eta small{font:800 .68rem var(--f-sign);letter-spacing:.09em;color:var(--muted);margin-right:5px}
+.tier{font:800 .74rem var(--f-sign);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:-4px 0 0}
+.stop.star .tier{color:var(--ink)}
+.note{margin:0;max-width:62ch}
+.stores{display:grid;gap:12px}
+.store{display:grid;gap:5px;padding-top:12px;border-top:1px dashed var(--line);min-width:0}
+.store:first-child{border-top:0;padding-top:0}
+.store-top{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+.store-name{font-weight:700;font-size:1.04rem}
+.lead{font:800 .68rem/1 var(--f-sign);letter-spacing:.08em;text-transform:uppercase;padding:5px 7px 4px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+.lead.strong{background:var(--flag);border-color:var(--flag);color:var(--flag-ink)}
+.addr{margin:0;overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:.92rem;color:var(--muted)}
+.phone{font:600 .98rem var(--f-num);color:var(--ink);font-variant-numeric:tabular-nums}
+.chip{font:800 .72rem/1 var(--f-sign);letter-spacing:.04em;padding:5px 8px 4px;border-radius:999px;white-space:nowrap}
+.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.btn{font:800 .9rem/1 var(--f-sign);padding:10px 12px;min-height:42px;border-radius:8px;border:2px solid var(--ink);background:transparent;color:var(--ink);text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn.go{background:var(--sign);border-color:var(--sign);color:var(--sign-ink)}
+.leave{justify-self:start;font:800 .82rem/1 var(--f-sign);letter-spacing:.04em;padding:9px 12px;min-height:40px;border-radius:999px;border:1px dashed var(--muted);background:none;color:var(--muted);cursor:pointer}
+.end{position:relative;padding:12px 0 0 46px}
+.end .node{top:14px;background:var(--ink)}
+.end p{margin:0;font:800 1.1rem var(--f-sign)}
+.end span{display:block;font:600 .95rem var(--f-num);color:var(--muted)}
+
+/* Reference sections */
+section.ref{margin-top:40px}
+section.ref h2{font:900 1.4rem/1.1 var(--f-sign);text-transform:uppercase;letter-spacing:.02em;margin:0 0 12px;text-wrap:balance}
+.leads{display:grid;gap:12px}
+.leadrow{display:grid;grid-template-columns:150px 1fr;gap:4px 16px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.leadrow:last-child{border-bottom:0}
+.leadrow h3{margin:0;font:800 1rem/1.3 var(--f-sign)}
+.leadrow p{margin:0;max-width:62ch}
+.sets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.set{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:8px;align-content:start;min-width:0}
+.set h3{margin:0;font:800 1.05rem/1.2 var(--f-sign)}
+.set .when{font:600 .82rem var(--f-num);color:var(--muted);margin:0}
+.set ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:.95rem}
+.set .k{font:800 .7rem var(--f-sign);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:4px 0 0}
+.tips{margin:0;padding-left:20px;display:grid;gap:8px;max-width:66ch}
+.sources{margin:0;padding-left:18px;display:grid;gap:4px;font-size:.92rem;color:var(--muted)}
+.sources a{color:var(--ink)}
+footer{margin-top:28px;font-size:.85rem;color:var(--muted)}
+@media (max-width:640px){
+  .sets{grid-template-columns:minmax(0,1fr)}
+  .leadrow{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="sign" aria-label="Trip summary">
+    <div class="sign-inner">
+      <div class="shields" id="routeShields"></div>
+      <h1>I-80 Card Hunt</h1>
+      <p class="sub">Middletown, NY → Detroit, MI · Saturday, Oct 10</p>
+      <p class="facts">Google's fastest route: 604 miles, 8 h 54 min of driving, Ohio Turnpike tolls. Stops are in driving order with the freshest restock leads first.</p>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div>
+      <p class="ctl-label" id="planLabel">Plan</p>
+      <div class="plans" role="group" aria-labelledby="planLabel">
+        <button type="button" id="plan-express" data-mode="express" aria-pressed="false">Express<span id="cnt-express"></span></button>
+        <button type="button" id="plan-full" data-mode="full" aria-pressed="true">Full hunt<span id="cnt-full"></span></button>
+        <button type="button" id="plan-all" data-mode="all" aria-pressed="false">Everything<span id="cnt-all"></span></button>
+      </div>
+    </div>
+    <div class="timerow">
+      <label for="depart"><span class="ctl-label">Left Middletown at (ET)</span><input type="time" id="depart" value="10:00"></label>
+      <div class="arrive"><span class="ctl-label">Detroit, roughly</span><b id="detroitEta">–</b></div>
+    </div>
+    <div class="anchor-note" id="anchorNote" hidden></div>
+    <p class="caveat">ETAs add rough minutes per stop to Google's drive time, so use them for closing times, not to the minute. Nothing here guarantees stock: shelves change by the hour, and calling ahead is the only sure check.</p>
+  </div>
+
+  <main id="route" aria-label="Stops in driving order"></main>
+
+  <section class="ref" aria-labelledby="why">
+    <h2 id="why">Why these stores</h2>
+    <div class="leads">
+      <div class="leadrow"><h3>Barnes &amp; Noble</h3><p>The strongest lead this week. 30th Celebration hit B&amp;N shelves at launch on Sept 16, the second wave (booster bundles and mini tins) landed Oct 2, and collectors reported another B&amp;N drop on Oct 5. Participating stores were also giving out a Mewtwo 30th Celebration promo with $15+ of Pokémon TCG, while supplies last.</p></div>
+      <div class="leadrow"><h3>Dollar General</h3><p>A store arrival sheet reported by Restockd lists early-October shipments of 30th Celebration poster collections, Elite Trainer Boxes and ex boxes, and DG's own site lists the ETB and poster collection for in-store purchase. Each store gets one truck a week on its own day, and rural stores off I-80 see far less competition than suburban Targets.</p></div>
+      <div class="leadrow"><h3>Meijer</h3><p>Named alongside Target, Walmart and B&amp;N in collector posts about 30th Celebration restocks. Open until midnight, which makes it the safest bet for the late Toledo–Detroit stretch.</p></div>
+      <div class="leadrow"><h3>Target &amp; Walmart</h3><p>Both carry all three sets and supply is moving: Target restocked the 30th Celebration ETB and Ascended Heroes tech sticker collections online on Oct 9, and Walmart ran online drawings Oct 7–8. In stores, a third-party vendor fills the card aisle on each store's own schedule, and Friday is the most-reported Target vendor day, so a Saturday visit can turn up leftovers or nothing.</p></div>
+      <div class="leadrow"><h3>Best Buy</h3><p>Carries the line but sells much of it online. Look up the exact product in the Best Buy app with that store selected before walking in.</p></div>
+    </div>
+  </section>
+
+  <section class="ref" aria-labelledby="look">
+    <h2 id="look">What to look for</h2>
+    <div class="sets">
+      <div class="set">
+        <h3>30th Celebration</h3>
+        <p class="when">The 30th Anniversary set · out Sept 16</p>
+        <p class="k">On shelves now</p>
+        <ul>
+          <li>Elite Trainer Box</li>
+          <li>ex Box (Sylveon ex &amp; Greninja ex)</li>
+          <li>Poster Collection (Articuno, Zapdos, Moltres promos)</li>
+          <li>Tech Sticker Collection</li>
+          <li>Knock Out Collection, 2-Pack Blister</li>
+          <li>Since Oct 2: Booster Bundle, Mini Tins</li>
+        </ul>
+        <p class="k">Not out yet</p>
+        <ul>
+          <li>Battle Decks (Oct 30)</li>
+          <li>Ultra-Premium Collections, Ditto Premium Collection, Figure Collections (Nov 6)</li>
+          <li>Binder Collection (Dec 4)</li>
+        </ul>
+      </div>
+      <div class="set">
+        <h3>Ascended Heroes</h3>
+        <p class="when">Mega Evolution special set · out Jan 30</p>
+        <ul>
+          <li>Elite Trainer Box, Booster Bundle</li>
+          <li>Erika and Larry 2-Pack Blisters</li>
+          <li>Mega Charizard X and Y tins</li>
+          <li>Gardevoir and Lucario poster collections</li>
+          <li>Tech sticker collections (Charmander, Gastly)</li>
+          <li>Tins with Mega Feraligatr ex, Mega Meganium ex or Mega Emboar ex promos (Aug 28)</li>
+        </ul>
+        <p class="k">Latest signal</p>
+        <ul><li>Tins restocked Oct 8; Target sticker collections Oct 9</li></ul>
+      </div>
+      <div class="set">
+        <h3>Prismatic Evolutions</h3>
+        <p class="when">Scarlet &amp; Violet special set · Jan 2025</p>
+        <ul>
+          <li>Elite Trainer Box, Booster Bundle</li>
+          <li>Poster, Binder and Tech Sticker Collections</li>
+          <li>Surprise Box, Super-Premium Collection, Premium Figure Collection</li>
+        </ul>
+        <p class="k">Latest signal</p>
+        <ul><li>The long shot. Recent activity has been online (Walmart's Oct 8 drawing added the Premium Figure Collection). Dollar General has turned up Prismatic ETBs before, so glance at every DG rack.</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="ref" aria-labelledby="tips">
+    <h2 id="tips">At each stop</h2>
+    <ol class="tips">
+      <li>Call the Barnes &amp; Nobles before he reaches them and ask whether they have 30th Celebration out. Their numbers are on each stop.</li>
+      <li>At Dollar General, check the card rack, endcaps, the side panels of aisles and the registers, then ask whether this week's truck has been unloaded yet. Restockd's app has an In Store tab with store-reported counts for DG's 30th Celebration items by ZIP code.</li>
+      <li>Every Ohio Turnpike exit is a toll plaza each way (E-ZPass works), so each Ohio stop costs about five extra minutes.</li>
+      <li>Expect purchase limits on new Pokémon product, and skip anything from the "not out yet" list sitting on a shelf at a markup.</li>
+      <li>After leaving a stop, tap "Leaving here now" so the ETAs for the rest of the drive update.</li>
+    </ol>
+  </section>
+
+  <section class="ref" aria-labelledby="src">
+    <h2 id="src">Sources</h2>
+    <ul class="sources">
+      <li><a href="https://www.pokemon.com/us/news/check-out-every-pokemon-tcg-product-release-in-october-2026" target="_blank" rel="noopener">Pokémon: every TCG product release in October 2026</a></li>
+      <li><a href="https://www.tcgplayer.com/content/article/Buyer-s-Guide-to-Pok%C3%A9mon-TCG-30th-Celebration/0d9be702-6afe-467a-9aeb-d531592d9889/" target="_blank" rel="noopener">TCGplayer: 30th Celebration buyer's guide and release waves</a></li>
+      <li><a href="https://restockd.app/blog/dollar-general-pokemon-30th-celebration" target="_blank" rel="noopener">Restockd: 30th Celebration at Dollar General (Oct 4)</a></li>
+      <li><a href="https://restockd.app/brands/pokemon" target="_blank" rel="noopener">Restockd: latest Pokémon restocks (Oct 7–10)</a></li>
+      <li><a href="https://www.dollargeneral.com/p/pok-mon-trading-card-game-30th-celebration-elite-trainer-box/196214158801" target="_blank" rel="noopener">Dollar General: 30th Celebration Elite Trainer Box</a></li>
+      <li><a href="https://axeetech.com/barnes-and-noble-pokemon-drop/" target="_blank" rel="noopener">AxeeTech: Barnes &amp; Noble 30th Celebration drop (Oct 2)</a></li>
+      <li><a href="https://www.threads.com/@lunchmoneycg/post/DeAX0KLDftG/barnes-noble-th-anniversary-drop-monday-pokemon-th-anniversary-product-is/" target="_blank" rel="noopener">Threads: B&amp;N Oct 5 drop and chains getting 30th Celebration</a></li>
+      <li><a href="https://cardlines.com/is-pokemon-30th-celebration-finally-beating-the-scalpers" target="_blank" rel="noopener">Cardlines: 30th Celebration restocks since launch (Oct 9)</a></li>
+      <li><a href="https://tcgdropradar.com/set/ascended-heroes/" target="_blank" rel="noopener">TCG Drop Radar: Ascended Heroes tins and restock status</a></li>
+      <li><a href="https://www.pokepullz.ca/blog/target-pokemon-restock" target="_blank" rel="noopener">PokePullz: Target in-store restock patterns</a></li>
+      <li><a href="https://x.com/PokemonDealsTCG/status/2107939892529664165" target="_blank" rel="noopener">Pokemon Deals on X: Prismatic Evolutions in Walmart's Oct 8 drawing</a></li>
+      <li><a href="https://www.youtube.com/watch?v=18M5yTq5c2I" target="_blank" rel="noopener">YouTube: 30th Celebration found at Dollar General (Oct 7)</a></li>
+    </ul>
+    <footer>Store addresses, phone numbers and Saturday hours from Google Maps. Built Saturday morning, Oct 10, from reports dated Oct 2–10.</footer>
+  </section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var END_DRIVE = 534; // Google: 8 h 54 min, Middletown to Detroit
+  var CHAINS = {
+    bn:{lead:"Strong lead",strong:true},
+    dg:{lead:"Strong lead",strong:true},
+    meijer:{lead:"Good lead",strong:false},
+    target:{lead:"Worth a look",strong:false},
+    walmart:{lead:"Worth a look",strong:false},
+    bestbuy:{lead:"Check the app",strong:false}
+  };
+  var SEGS = [
+    {id:"i84", title:"I-84 West · New York and Pennsylvania", shields:["84"]},
+    {id:"i81", title:"I-81 South · Scranton and Wilkes-Barre", shields:["81"]},
+    {id:"pa", title:"I-80 West · Pennsylvania", shields:["80"]},
+    {id:"oh", title:"I-80 West · Youngstown and the Ohio Turnpike", shields:["80"], toll:true},
+    {id:"mi", title:"I-280 and I-75 North · Toledo to Detroit", shields:["280","75"]}
+  ];
+  // drive = minutes from Middletown with no stops; over = minutes to exit, reach the store(s) and get back on; dwell = minutes inside
+  var S = [
+    {id:"mdt",seg:"i84",tier:"extra",exit:"Start",place:"Middletown, NY",drive:1,over:4,dwell:15,
+     note:"Both sit on Route 211 between the Dollar General and the I-84 ramp, so there's no detour.",
+     stores:[
+      {n:"Walmart Supercenter",c:"walmart",a:"470 NY-211, Middletown, NY 10940",p:"845-342-0222",o:360,cl:1380,id:"ChIJeSGWfxMtw4kR5_OhScc1BMM"},
+      {n:"Target (Galleria at Crystal Run)",c:"target",a:"1 Galleria Dr Ste 140, Middletown, NY 10941",p:"845-692-3700",o:480,cl:1380,id:"ChIJdxMF3Bktw4kRmfYN36HNUME"}]},
+    {id:"mat",seg:"i84",tier:"extra",exit:"Exit 53",place:"Matamoras, PA",drive:19,over:6,dwell:10,
+     note:"Walmart on US-6/209 right off the exit.",
+     stores:[{n:"Walmart Supercenter",c:"walmart",a:"220 US-6 & 209, Milford, PA 18337",p:"570-491-4940",o:360,cl:1380,id:"ChIJM59-osigxIkRss3kLWZWcBw"}]},
+    {id:"dck",seg:"i81",tier:"extra",exit:"Detour",place:"Dickson City, PA",drive:66,over:28,dwell:25,
+     note:"Only if the Wilkes-Barre Barnes & Noble says it's out. About 6 miles north of the I-84/I-81 junction, roughly 12–15 minutes each way.",
+     stores:[
+      {n:"Barnes & Noble",c:"bn",a:"638 Commerce Blvd, Dickson City, PA 18519",p:"272-206-4778",o:540,cl:1260,id:"ChIJKWUuegDZxIkR351lq88p6ew"},
+      {n:"Target",c:"target",a:"1140 Commerce Blvd, Dickson City, PA 18519",p:"570-383-7100",o:420,cl:1380,id:"ChIJ4Y3efJTZxIkRh3okSNE6TAU"}]},
+    {id:"wb",seg:"i81",tier:"star",exit:"Exit 168",place:"Wilkes-Barre Township, PA",drive:83,over:8,dwell:45,
+     note:"Four big stores within a mile of each other at Arena Hub Plaza. Start with Barnes & Noble.",
+     stores:[
+      {n:"Barnes & Noble",c:"bn",a:"421 Arena Hub Plaza, Wilkes-Barre Township, PA 18702",p:"570-829-4210",o:540,cl:1260,id:"ChIJceV03gcbxYkROXH5wYsRc0k"},
+      {n:"Target",c:"target",a:"3400 Wilkes-Barre Township Commons, Wilkes-Barre Township, PA 18702",p:"570-829-0511",o:420,cl:1380,id:"ChIJ5dU7NKgbxYkRkgq0glr3-Ek"},
+      {n:"Best Buy",c:"bestbuy",a:"449 Arena Hub Plaza, Wilkes-Barre, PA 18702",p:"570-819-0719",o:600,cl:1260,id:"ChIJ6ZjpEwgbxYkR9dhRt4gzosk"},
+      {n:"Walmart Supercenter",c:"walmart",a:"2150 Wilkes-Barre Township Marketplace, Wilkes-Barre, PA 18702",p:"570-821-6180",o:360,cl:1380,id:"ChIJNWTo-P4axYkRmIX6GwTtthw"}]},
+    {id:"blm",seg:"pa",tier:"core",exit:"Exit 232",place:"Bloomsburg (Buckhorn), PA",drive:123,over:6,dwell:12,
+     note:"Walmart in the Buckhorn shopping area at the exit.",
+     stores:[{n:"Walmart Supercenter",c:"walmart",a:"100 Lunger Dr, Bloomsburg, PA 17815",p:"570-389-5750",o:360,cl:1380,id:"ChIJ5d-RDKR9z4kRHiSNnmbSVH8"}]},
+    {id:"lew",seg:"pa",tier:"extra",exit:"Exit 210A",place:"Lewisburg, PA",drive:142,over:18,dwell:20,
+     note:"About 4 miles south on US-15, with a Dollar General close by on PA-405.",
+     stores:[
+      {n:"Walmart Supercenter",c:"walmart",a:"120 AJK Blvd, Lewisburg, PA 17837",p:"570-522-8200",o:360,cl:1380,id:"ChIJy7hO97ETz4kRw46ngU0r-WM"},
+      {n:"Dollar General",c:"dg",a:"5180 PA-405, Milton, PA 17847",p:"570-989-0405",o:480,cl:1260,id:"ChIJb8ku_o4Sz4kRAqLTKuukg0o"}]},
+    {id:"mh",seg:"pa",tier:"core",exit:"Exit 173",place:"Lamar / Mill Hall, PA",drive:175,over:4,dwell:8,
+     note:"Dollar General right at the exit. A five-minute check.",
+     stores:[{n:"Dollar General",c:"dg",a:"20 Caplan Wy, Mill Hall, PA 17751",p:"724-920-0273",o:480,cl:1320,id:"ChIJgyxkJ0vzzokR1XVn0dnmdQw"}]},
+    {id:"sc",seg:"pa",tier:"extra",exit:"Exit 161",place:"State College, PA",drive:186,over:32,dwell:30,
+     note:"The biggest detour here: about 13 miles south on I-99 to a Barnes & Noble and a Walmart side by side on Benner Pike. Worth it only if that B&N confirms stock by phone.",
+     stores:[
+      {n:"Barnes & Noble",c:"bn",a:"365 Benner Pike, State College, PA 16801",p:"814-867-9330",o:540,cl:1260,id:"ChIJURqMVrKlzokRlU106huSquQ"},
+      {n:"Walmart Supercenter",c:"walmart",a:"373 Benner Pike, State College, PA 16801",p:"814-235-9306",o:360,cl:1380,id:"ChIJqRMWp7SlzokR2566efZznMg"}]},
+    {id:"ss",seg:"pa",tier:"extra",exit:"Exit 147",place:"Snow Shoe, PA",drive:198,over:4,dwell:8,
+     note:"DG Market by the exit.",
+     stores:[{n:"DG Market",c:"dg",a:"472 E Sycamore Rd, Snow Shoe, PA 16874",p:"814-387-3080",o:480,cl:1320,id:"ChIJ9_WMEKAgzIkRwpU1binLKGY"}]},
+    {id:"clf",seg:"pa",tier:"star",exit:"Exit 120",place:"Clearfield, PA",drive:222,over:10,dwell:20,
+     note:"Walmart at the exit and a Dollar General about a mile away: two well-supplied chains in one stop.",
+     stores:[
+      {n:"Walmart Supercenter",c:"walmart",a:"100 Supercenter Dr, Clearfield, PA 16830",p:"814-765-8089",o:360,cl:1380,id:"ChIJd7E1NxRCzIkRNIhwB-8cz3o"},
+      {n:"Dollar General",c:"dg",a:"1120 Bigler Ave, Clearfield, PA 16830",p:"814-857-9512",o:480,cl:1320,id:"ChIJNVTSdnFCzIkRlROtu4WuwVg"}]},
+    {id:"dub",seg:"pa",tier:"extra",exit:"Exit 101",place:"DuBois, PA",drive:239,over:8,dwell:12,
+     note:"Another Walmart if Clearfield came up empty.",
+     stores:[{n:"Walmart Supercenter",c:"walmart",a:"20 Industrial Dr, DuBois, PA 15801",p:"814-375-5000",o:360,cl:1380,id:"ChIJc4Qm9cr1zIkRxBZZGJ4x7LQ"}]},
+    {id:"brk",seg:"pa",tier:"core",exit:"Exit 78",place:"Brookville, PA",drive:259,over:4,dwell:8,
+     note:"Dollar General on PA-36 near the exit.",
+     stores:[{n:"Dollar General",c:"dg",a:"225 Allegheny Blvd, Brookville, PA 15825",p:"814-299-5890",o:480,cl:1320,id:"ChIJm93P3GHBzIkRe1CjYv0J4GY"}]},
+    {id:"cla",seg:"pa",tier:"extra",exit:"Exit 62",place:"Clarion, PA",drive:273,over:6,dwell:12,
+     note:"Walmart just north of the exit.",
+     stores:[{n:"Walmart Supercenter",c:"walmart",a:"63 Perkins Rd, Clarion, PA 16214",p:"814-226-0809",o:360,cl:1380,id:"ChIJv76RBTQzM4gR-UR72Vg3bUM"}]},
+    {id:"mer",seg:"pa",tier:"core",exit:"Exit 15",place:"Mercer, PA",drive:315,over:6,dwell:8,
+     note:"Dollar General on US-19 heading into Mercer. Last Pennsylvania stop.",
+     stores:[{n:"Dollar General",c:"dg",a:"541 S Erie St, Mercer, PA 16137",p:"724-300-3265",o:480,cl:1320,id:"ChIJv5Bcu_qjM4gR3YwaIaDTqUw"}]},
+    {id:"nil",seg:"oh",tier:"extra",exit:"Exit 223",place:"Niles, OH",drive:340,over:16,dwell:12,
+     note:"About 4 miles north of I-80 by the Eastwood Mall.",
+     stores:[{n:"Target",c:"target",a:"5555 Youngstown Warren Rd, Niles, OH 44446",p:"330-505-1928",o:480,cl:1320,id:"ChIJBx8MSUXhM4gRk8DNbrnJY6U"}]},
+    {id:"str",seg:"oh",tier:"core",exit:"Exit 187",place:"Streetsboro, OH",drive:369,over:14,dwell:25,
+     note:"Leave the Turnpike at Streetsboro. Target and Walmart are both a few minutes north.",
+     stores:[
+      {n:"Target",c:"target",a:"1144 OH-303, Streetsboro, OH 44241",p:"330-626-6400",o:480,cl:1320,id:"ChIJhYh5sNkiMYgRmnDnaFrbKuU"},
+      {n:"Walmart Supercenter",c:"walmart",a:"905 Singletary Dr, Streetsboro, OH 44241",p:"330-626-9990",o:360,cl:1380,id:"ChIJefrPEcIiMYgRR1gsACuygh0"}]},
+    {id:"sgv",seg:"oh",tier:"star",exit:"Exit 161",place:"Strongsville, OH",drive:392,over:12,dwell:30,
+     note:"Barnes & Noble and Target on Royalton Rd, a few minutes from the exit. This B&N closes at 9 PM, so protect this stop if he's running late.",
+     stores:[
+      {n:"Barnes & Noble",c:"bn",a:"16700 Royalton Rd, Strongsville, OH 44136",p:"440-580-3334",o:600,cl:1260,id:"ChIJYUMCgBTrMIgR2W99PHNxwWU"},
+      {n:"Target",c:"target",a:"18200 Royalton Rd, Strongsville, OH 44136",p:"440-238-9924",o:480,cl:1320,id:"ChIJv0FJHoTqMIgRJ7tBIqERKcY"}]},
+    {id:"ely",seg:"oh",tier:"extra",exit:"Exit 145",place:"Elyria, OH",drive:406,over:12,dwell:12,
+     note:"Target a few minutes from the exit.",
+     stores:[{n:"Target",c:"target",a:"240 Market Dr, Elyria, OH 44035",p:"440-324-1000",o:480,cl:1320,id:"ChIJ9UwD0T-ZMIgR-jsiPjMidRw"}]},
+    {id:"mil",seg:"oh",tier:"core",exit:"Exit 118",place:"Milan, OH",drive:430,over:10,dwell:8,
+     note:"DG Market on US-250 just north of the exit.",
+     stores:[{n:"DG Market",c:"dg",a:"12684 US Hwy 250 N, Milan, OH 44846",p:"567-577-1886",o:480,cl:1320,id:"ChIJtZmNWyQ_OogRu8xkgFrfdzs"}]},
+    {id:"ore",seg:"mi",tier:"extra",exit:"I-280",place:"Oregon, OH",drive:478,over:6,dwell:15,
+     note:"Meijer close to I-280 on the east side of Toledo, open until midnight.",
+     stores:[{n:"Meijer",c:"meijer",a:"1725 S Wheeling St, Oregon, OH 43616",p:"419-697-2000",o:360,cl:1440,id:"ChIJTZEHUkqEO4gROBbb-aB3vMo"}]},
+    {id:"mon",seg:"mi",tier:"star",exit:"Exit 15",place:"Monroe, MI",drive:499,over:10,dwell:20,
+     note:"Meijer and Walmart half a mile apart on N Telegraph Rd. Meijer is open until midnight, so this is the safest late stop.",
+     stores:[
+      {n:"Meijer",c:"meijer",a:"1700 N Telegraph Rd, Monroe, MI 48162",p:"734-457-1900",o:360,cl:1440,id:"ChIJHT6_dmxvO4gRrTcAnJo-NUs"},
+      {n:"Walmart Supercenter",c:"walmart",a:"2150 N Telegraph Rd, Monroe, MI 48162",p:"734-242-2280",o:360,cl:1380,id:"ChIJQ3_JtUBvO4gRaFePxeUXae8"}]},
+    {id:"wdh",seg:"mi",tier:"core",exit:"Exit 32",place:"Woodhaven, MI",drive:514,over:8,dwell:15,
+     note:"Target and Meijer on Allen Rd, just west of I-75.",
+     stores:[
+      {n:"Meijer",c:"meijer",a:"22600 Allen Rd, Woodhaven, MI 48183",p:"734-692-8100",o:360,cl:1440,id:"ChIJc_JDtJI4O4gRjUJW8ivFr_g"},
+      {n:"Target",c:"target",a:"23555 Allen Rd, Woodhaven, MI 48183",p:"734-692-7200",o:480,cl:1320,id:"ChIJLdLnUuo4O4gRk_AOd8-krAw"}]},
+    {id:"tay",seg:"mi",tier:"extra",exit:"Exit 36",place:"Taylor (Southland), MI",drive:518,over:12,dwell:15,
+     note:"An alternative to Woodhaven: Target and Meijer by Southland, a few minutes west on Eureka Rd.",
+     stores:[
+      {n:"Meijer",c:"meijer",a:"14640 Pardee Rd, Taylor, MI 48180",p:"734-287-3300",o:360,cl:1440,id:"ChIJMcQTAwZIO4gRdXFioCwkIsM"},
+      {n:"Target",c:"target",a:"14099 Pardee Rd, Taylor, MI 48180",p:"734-374-0303",o:480,cl:1320,id:"ChIJZcEfYwNIO4gRDxVObgOpaEo"}]},
+    {id:"bnap",seg:"mi",tier:"extra",exit:"Detour",place:"Allen Park, MI",drive:527,over:22,dwell:15,
+     note:"One more Barnes & Noble near Fairlane, roughly 15 minutes off I-75. Closes at 9 PM.",
+     stores:[{n:"Barnes & Noble",c:"bn",a:"3120 Fairlane Dr, Allen Park, MI 48101",p:"313-271-0688",o:600,cl:1260,id:"ChIJrV4EXi00O4gRnOoaJpeO40k"}]}
+  ];
+
+  var state = {mode:"full", depart:600, anchor:null};
+  function load(k){ try{ return window.localStorage.getItem(k); }catch(e){ return null; } }
+  function save(k,v){ try{ if(v===null){ window.localStorage.removeItem(k); } else { window.localStorage.setItem(k,v); } }catch(e){} }
+
+  function esc(s){ return String(s).replace(/[&<>"']/g,function(ch){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]; }); }
+  function fmt(m){
+    m = Math.round(m);
+    var day = Math.floor(m/1440);
+    var mm = ((m%1440)+1440)%1440;
+    var h = Math.floor(mm/60), mi = mm%60;
+    var ap = h>=12 ? "PM" : "AM";
+    var h12 = h%12; if(h12===0){ h12 = 12; }
+    return h12 + ":" + (mi<10?"0":"") + mi + " " + ap + (day>0 ? " (after midnight)" : "");
+  }
+  function fmtH(m){
+    if(m>=1440){ return "midnight"; }
+    var h = Math.floor(m/60), mi = m%60, ap = h>=12 ? "PM" : "AM";
+    var h12 = h%12; if(h12===0){ h12 = 12; }
+    return h12 + (mi ? ":" + (mi<10?"0":"") + mi : "") + " " + ap;
+  }
+  function parseTime(v){
+    var mt = /^(\d{1,2}):(\d{2})/.exec(v||"");
+    if(!mt){ return 600; }
+    return (+mt[1])*60 + (+mt[2]);
+  }
+  function nowET(){
+    try{
+      var parts = new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hour:"numeric",minute:"numeric",hourCycle:"h23"}).formatToParts(new Date());
+      var h = 0, m = 0;
+      parts.forEach(function(p){ if(p.type==="hour"){ h = +p.value; } if(p.type==="minute"){ m = +p.value; } });
+      return h*60 + m;
+    }catch(e){ var d = new Date(); return d.getHours()*60 + d.getMinutes(); }
+  }
+  function inPlan(s, mode){
+    if(mode==="express"){ return s.tier==="star"; }
+    if(mode==="full"){ return s.tier!=="extra"; }
+    return true;
+  }
+  function compute(){
+    var base = state.depart, startDrive = 0, startIdx = 0, anchorIdx = -1;
+    if(state.anchor){
+      for(var k=0;k<S.length;k++){ if(S[k].id===state.anchor.id){ anchorIdx = k; break; } }
+      if(anchorIdx>=0){
+        base = state.anchor.t;
+        if(base < state.depart - 60){ base += 1440; }
+        base += S[anchorIdx].over/2;
+        startDrive = S[anchorIdx].drive;
+        startIdx = anchorIdx + 1;
+      }
+    }
+    var acc = 0, etas = {};
+    S.forEach(function(s,i){
+      if(i<startIdx){ etas[s.id] = {passed:true}; return; }
+      if(!inPlan(s, state.mode)){ return; }
+      var t = base + (s.drive - startDrive) + acc + s.over/2;
+      etas[s.id] = {t:t};
+      acc += s.over + s.dwell;
+    });
+    return {etas:etas, detroit: base + (END_DRIVE - startDrive) + acc, anchorIdx:anchorIdx};
+  }
+  function storeStatus(st, t){
+    var tod = t;
+    if(tod < st.o){ return {cls:"warn", txt:"Opens " + fmtH(st.o)}; }
+    if(tod >= st.cl){ return {cls:"warn", txt:"Closed by then"}; }
+    if(st.cl - tod <= 45){ return {cls:"warn", txt:"Closes " + fmtH(st.cl)}; }
+    return {cls:"ok", txt:"Open till " + fmtH(st.cl)};
+  }
+  function shield(n){
+    var big = n.length>2;
+    return '<svg viewBox="0 0 40 40" role="img" aria-label="Interstate ' + n + '">' +
+      '<path d="M3 5 C10 1.5 15 1.5 20 4.5 C25 1.5 30 1.5 37 5 L37 17 C37 29 29 35 20 38.5 C11 35 3 29 3 17 Z" style="fill:var(--shield-white)"/>' +
+      '<path d="M5.2 6.6 C11 3.8 15.5 3.8 20 6.4 C24.5 3.8 29 3.8 34.8 6.6 L34.8 12.4 L5.2 12.4 Z" style="fill:var(--shield-red)"/>' +
+      '<path d="M5.2 13.8 L34.8 13.8 L34.8 17.2 C34.8 27.6 27.8 33 20 36.2 C12.2 33 5.2 27.6 5.2 17.2 Z" style="fill:var(--shield-blue)"/>' +
+      '<text x="20" y="' + (big?"28":"29.5") + '" text-anchor="middle" style="fill:var(--shield-white);font-family:Overpass,Arial,sans-serif;font-weight:900;font-size:' + (big?"11":"14.5") + 'px">' + n + '</text></svg>';
+  }
+  function dirUrl(st){
+    return "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(st.n + ", " + st.a) + "&destination_place_id=" + encodeURIComponent(st.id) + "&travelmode=driving";
+  }
+  function tierLabel(s){
+    if(s.tier==="star"){ return "Top stop"; }
+    if(s.tier==="core"){ return "Quick check"; }
+    return "Optional · adds about " + (s.over + s.dwell) + " min";
+  }
+
+  document.getElementById("routeShields").innerHTML =
+    shield("84") + '<span class="to">→</span>' + shield("81") + '<span class="to">→</span>' + shield("80") +
+    '<span class="tolltag">OHIO TPK</span><span class="to">→</span>' + shield("280") + '<span class="to">→</span>' + shield("75");
+
+  ["express","full","all"].forEach(function(m){
+    var c = S.filter(function(s){ return inPlan(s,m); }).length;
+    document.getElementById("cnt-" + m).textContent = c + " stops";
+  });
+
+  function render(){
+    var r = compute();
+    var html = "";
+    SEGS.forEach(function(seg){
+      var segStops = S.filter(function(s){ return s.seg===seg.id; });
+      var shown = segStops.filter(function(s){ return inPlan(s, state.mode); });
+      var hiddenCount = segStops.length - shown.length;
+      html += '<section class="segment" aria-label="' + esc(seg.title) + '"><div class="seg-head"><div class="shields">' +
+        seg.shields.map(shield).join("") + (seg.toll ? '<span class="tolltag">TOLL</span>' : "") + '</div><h2>' + esc(seg.title) + '</h2>' +
+        (hiddenCount ? '<span class="more">+' + hiddenCount + ' more in a bigger plan</span>' : "") + '</div>';
+      if(!shown.length){ html += '<p class="more" style="margin:0 0 0 46px;color:var(--muted)">No stops on this stretch in this plan.</p></section>'; return; }
+      html += '<ol class="stops">';
+      shown.forEach(function(s){
+        var e = r.etas[s.id] || {};
+        var passed = !!e.passed;
+        html += '<li class="stop ' + s.tier + (passed ? " passed" : "") + '" id="stop-' + s.id + '"><span class="node" aria-hidden="true"></span>' +
+          '<span class="exit' + (/^Exit/.test(s.exit) ? "" : " plain") + '">' + esc(s.exit) + '</span>' +
+          '<div class="panel"><div class="stop-head"><h3>' + esc(s.place) + '</h3>' +
+          '<span class="eta">' + (passed ? '<small>DONE</small>' : (e.t!=null ? '<small>ETA</small>' + fmt(e.t) : "")) + '</span></div>' +
+          '<p class="tier">' + (s.tier==="star" ? "★ " : "") + esc(tierLabel(s)) + '</p>' +
+          '<p class="note">' + esc(s.note) + '</p><div class="stores">';
+        s.stores.forEach(function(st, j){
+          var ch = CHAINS[st.c];
+          var stt = (!passed && e.t!=null) ? storeStatus(st, e.t) : null;
+          html += '<div class="store"><div class="store-top"><span class="store-name">' + esc(st.n) + '</span>' +
+            '<span class="lead' + (ch.strong ? " strong" : "") + '">' + esc(ch.lead) + '</span></div>' +
+            '<p class="addr">' + esc(st.a) + '</p>' +
+            '<div class="meta"><span class="phone" id="ph-' + s.id + '-' + j + '">' + esc(st.p) + '</span>' +
+            '<span>Sat ' + fmtH(st.o) + '–' + fmtH(st.cl) + '</span>' +
+            (stt ? '<span class="chip ' + stt.cls + '">' + esc(stt.txt) + '</span>' : "") + '</div>' +
+            '<div class="actions"><a class="btn go" href="' + dirUrl(st) + '" target="_blank" rel="noopener">Directions ↗</a>' +
+            '<button type="button" class="btn" data-copy="ph-' + s.id + '-' + j + '">Copy number</button></div></div>';
+        });
+        html += '</div>' + (passed ? "" : '<button type="button" class="leave" data-leave="' + s.id + '">Leaving here now</button>') + '</div></li>';
+      });
+      html += '</ol></section>';
+    });
+    html += '<div class="end"><span class="node" aria-hidden="true"></span><p>Detroit, MI</p><span>Arrive about ' + fmt(r.detroit) + '</span></div>';
+    document.getElementById("route").innerHTML = html;
+    document.getElementById("detroitEta").textContent = fmt(r.detroit);
+
+    ["express","full","all"].forEach(function(m){
+      document.getElementById("plan-" + m).setAttribute("aria-pressed", String(state.mode===m));
+    });
+    var an = document.getElementById("anchorNote");
+    if(state.anchor && r.anchorIdx>=0){
+      an.hidden = false;
+      an.innerHTML = '<span>Re-planned from <b>' + esc(S[r.anchorIdx].place) + '</b>, left at ' + fmt(state.anchor.t) + '.</span><button type="button" class="linkbtn" id="resetAnchor">Reset to departure time</button>';
+    } else {
+      an.hidden = true; an.innerHTML = "";
+    }
+  }
+
+  document.querySelector(".plans").addEventListener("click", function(ev){
+    var b = ev.target.closest("button[data-mode]");
+    if(!b){ return; }
+    state.mode = b.getAttribute("data-mode");
+    save("hunt.mode", state.mode);
+    render();
+  });
+  var dep = document.getElementById("depart");
+  dep.addEventListener("change", function(){
+    state.depart = parseTime(dep.value);
+    save("hunt.depart", dep.value);
+    render();
+  });
+  document.addEventListener("click", function(ev){
+    var lv = ev.target.closest("[data-leave]");
+    if(lv){
+      state.anchor = {id: lv.getAttribute("data-leave"), t: nowET()};
+      save("hunt.anchor", JSON.stringify(state.anchor));
+      render();
+      return;
+    }
+    if(ev.target.closest("#resetAnchor")){
+      state.anchor = null; save("hunt.anchor", null); render(); return;
+    }
+    var cp = ev.target.closest("[data-copy]");
+    if(cp){
+      var el = document.getElementById(cp.getAttribute("data-copy"));
+      var txt = el ? el.textContent : "";
+      var done = function(label){ var old = "Copy number"; cp.textContent = label; setTimeout(function(){ cp.textContent = old; }, 1600); };
+      var selectIt = function(){
+        try{ var rg = document.createRange(); rg.selectNodeContents(el); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(rg); done("Selected"); }catch(e){}
+      };
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(txt).then(function(){ done("Copied"); }, selectIt);
+        } else { selectIt(); }
+      }catch(e){ selectIt(); }
+    }
+  });
+
+  var m0 = load("hunt.mode"); if(m0==="express" || m0==="full" || m0==="all"){ state.mode = m0; }
+  var d0 = load("hunt.depart"); if(d0 && /^\d{1,2}:\d{2}$/.test(d0)){ dep.value = d0; state.depart = parseTime(d0); }
+  var a0 = load("hunt.anchor"); if(a0){ try{ var p = JSON.parse(a0); if(p && p.id && typeof p.t==="number"){ state.anchor = p; } }catch(e){} }
+  render();
+})();
+</script>
+
+</body></html>
